@@ -1,0 +1,75 @@
+// prisma/schema.prisma
+
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+
+model Users {
+  userId          Int         @id @default(autoincrement()) @map("userId")
+  email           String      @unique @map("email")
+  name            String      @map("name")
+  password        String      @map("password")
+  passwordConfirm String      @map("passwordConfirm")
+  createdAt       DateTime    @default(now()) @map("createdAt")
+  updatedAt       DateTime    @updatedAt @map("updatedAt")
+
+
+ @@unique([userId])
+  userInfo        UserInfos?
+  resumes    Resumes[]
+  @@map("Users")
+}
+
+
+model Resumes {
+  resumeId    Int      @id @default(autoincrement()) @map("resumeId")
+  userId    Int      @map("userId") 
+  title     String   @map("title")
+  introduce   String   @map("content") @db.Text
+  status      ResumeStatus   @default(APPLY)
+  createdAt DateTime @default(now()) @map("createdAt")
+  updatedAt DateTime @updatedAt @map("updatedAt")
+
+  
+  user     Users     @relation(fields: [userId], references: [userId])
+
+  @@map("Resumes")
+}
+
+enum ResumeStatus {
+APPLY
+DROP
+PASS
+INTERVIEW1
+INTERVIEW2
+FINAL_PASS
+}
+
+model UserInfos {
+
+  userInfoId   Int      @id @default(autoincrement()) @map("userInfoId")
+  userId    Int         @unique @map("userId") 
+  email    String      @unique @map("email")
+  name      String      @map("name")
+  role       Role       @default(APPLICANT)
+  createdAt DateTime    @default(now()) @map("createdAt")
+  updatedAt DateTime    @updatedAt @map("updatedAt")
+
+  user      Users       @relation(fields: [userId], references: [userId])
+
+  @@map("UserInfos")
+}
+
+enum Role {
+  APPLICANT
+  RECRUITER
+}
