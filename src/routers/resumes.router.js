@@ -3,6 +3,7 @@
 import express from 'express';
 import { prisma } from './index.js';
 import accessMiddleware from '../middleware/require-access-token.middleware.js';
+import UserRole from '../constants/user.constant.js';
 const router = express.Router();
 
 /** 이력서 생성 API **/
@@ -40,19 +41,28 @@ router.post('/post', accessMiddleware, async (req, res, next) => {
 // src/routes/posts.router.js
 
 /** 이력서 목록 조회 API **/
-router.get('/resumes', accessMiddleware, async (req, res, next) => {
+router.get('/resumes', accessMiddleware,  async (req, res, next) => {
    
   try {
+
+    const userRole = req.user.role;
+
     // Query Parameters로부터 정렬 조건을 받습니다.
-    const sort = req.query.sort ? req.query.sort.toLowerCase() : 'desc';
+    const { status } = req.query;
+    const sortOrder = req.query.sort ? req.query.sort.toLowerCase() : 'desc';
     
-    // 정렬 조건에 따른 정렬 방향을 설정합니다.
-    const sortOrder = sort === 'asc' ? 'asc' : 'desc';
 
-
+    let where = {};
+    if (userRole == UserRole.RECRUITER) {
+      where.userId = req.user.userId;
+    }
+    
+    if (status) {
+      where.status = ResumeConstant.toUpperCase();
+    }
+ 
   const resumes = await prisma.resumes.findMany({
-    where: { userId: req.user.userId },
-     // 현재 로그인한 사용자의 userId와 일치하는 이력서만 조회
+    where,
      orderBy: { createdAt: sortOrder },
       select: {
         resumeId: true,
@@ -75,44 +85,62 @@ router.get('/resumes', accessMiddleware, async (req, res, next) => {
 catch (err) {
   next(err);
 }});
+  
+  
+
 
 
 /** 이력서 상세 조회 API **/
 router.get('/posts/:resumeId', accessMiddleware, async (req, res, next) => {
-  const { resumeId} = req.params;
-  const resume = await prisma.resumes.findUnique({
-      where: { resumeId: +resumeId }, 
-      include: {user: { select: { name: true } } } 
-  });
+  const { resumeId } = req.params;
+  const userRole = req.user.role;
 
-  if (!resume) {
-    return res.status(400).json({ message: '이력서가 존재하지 않습니다.'});
+  try {
+    let resume;
+    // 채용 담당자인 경우 이력서를 조회합니다.
+    if (userRole === UserRole.RECRUITER) {
+      resume = await prisma.resumes.findUnique({
+        where: { resumeId: +resumeId },
+        include: { user: { select: { name: true } } }
+      });
+    } else {
+      // 지원자인 경우 이력서를 조회하고, 로그인한 사용자와 이력서 작성 사용자가 일치하는지 확인합니다.
+      resume = await prisma.resumes.findUnique({
+        where: { resumeId: +resumeId },
+        include: { user: { select: { name: true } } }
+      });
+      
+      if (!resume) {
+        return res.status(400).json({ message: '이력서가 존재하지 않습니다.' });
+      }
+
+      if (userRole !== UserRole.RECRUITER && resume.userId !== req.user.userId) {
+        return res.status(400).json({ message: '로그인한 사용자가 아닙니다.' });
+      }
+    }
+
+    const Resume = {
+      resumeId: resume.resumeId,
+      name: resume.user.name, 
+      title: resume.title,
+      introduce: resume.introduce,
+      status: resume.status,
+      createdAt: resume.createdAt,
+      updatedAt: resume.updatedAt
+    };
+
+    return res.status(200).json({ Resume });
+  } catch (error) {
+    next(error);
   }
-
-  if (resume.userId !== req.user.userId) {
-    return res.status(400).json({ message: '로그인한 사용자가 아닙니다.' });
-}
-
-const Resume = {
-  resumeId: resume.resumeId,
- name: resume.user.name, // 작성자 이름
-  title: resume.title,
-  introduce: resume.introduce,
-  status: resume.status,
-  createdAt: resume.createdAt,
-  updatedAt: resume.updatedAt
-};
-
-
-  return res.status(200).json({Resume});
 });
 
 
 
 
 
-/** 게시글 수정 API **/
-router.put('/posts/:resumeId', accessMiddleware, async (req, res, next) => {
+/** 이력서 수정 API **/
+router.patch('/posts/:resumeId', accessMiddleware, async (req, res, next) => {
   const { resumeId} = req.params;
   const { title, introduce} = req.body;
 
@@ -146,19 +174,32 @@ const Resume = {
 
 
 /** 게시글 삭제 API **/
-router.delete('/posts/:resumeId', accessMiddleware, async (req, res, next) => {
-  const { resumeId } = req.params;
-  
+router.delete('/resumes/:resumeId', accessMiddleware, async (req, res) => {
+  try {
+    const { userId } = req.user;
+    const resumeId  = req.params.resumeId;
 
-  const resume = await prisma.resumes.findFirst({ where: { resumeId: +resumeId} });
+    // 이력서 조회
+    const resume = await prisma.resumes.findFirst({ 
+      where: { 
+        resumeId: +resumeId,
+        userId: userId // 현재 로그인한 사용자가 작성한 이력서만 삭제 가능
+      } 
+    });
 
-  if (!resume)
-    return res.status(404).json({ message: '이력서가 존재하지 않습니다.' });
+    // 이력서가 존재하지 않는 경우
+    if (!resume) {
+      return res.status(404).json({ message: '이력서가 존재하지 않습니다.' });
+    }
 
+    // 이력서 정보 삭제
+    await prisma.resumes.delete({ where: { resumeId: +resumeId } });
 
-  await prisma.resumes.delete({ where: { resumeId: +resumeId} });
-
-  return res.status(200).json({ resumeId: +resumeId});
+    // 삭제된 이력서 ID 반환
+    return res.status(200).json({ resumeId: +resumeId });
+  } catch (error) {
+    return res.status(500).json({ message: '이력서 삭제에 실패했습니다.' });
+  }
 });
 
 

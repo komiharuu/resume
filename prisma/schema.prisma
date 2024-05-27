@@ -13,10 +13,12 @@ datasource db {
 }
 
 
+
 model Users {
   userId          Int         @id @default(autoincrement()) @map("userId")
   email           String      @unique @map("email")
   name            String      @map("name")
+  role            Role     @default(RECRUITER)
   password        String      @map("password")
   passwordConfirm String      @map("passwordConfirm")
   createdAt       DateTime    @default(now()) @map("createdAt")
@@ -24,8 +26,9 @@ model Users {
 
 
  @@unique([userId])
-  userInfo        UserInfos?
-  resumes    Resumes[]
+  userInfos        UserInfos[]
+  resumes    Resumes[] 
+  resumeLogs ResumeLog[] @relation("UserToResumeLog")
   @@map("Users")
 }
 
@@ -34,16 +37,35 @@ model Resumes {
   resumeId    Int      @id @default(autoincrement()) @map("resumeId")
   userId    Int      @map("userId") 
   title     String   @map("title")
-  introduce   String   @map("content") @db.Text
+  introduce   String   @map("introduce") @db.Text
   status      ResumeStatus   @default(APPLY)
   createdAt DateTime @default(now()) @map("createdAt")
   updatedAt DateTime @updatedAt @map("updatedAt")
 
   
-  user     Users     @relation(fields: [userId], references: [userId])
-
+   user     Users     @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  resumeLogs ResumeLog[]
   @@map("Resumes")
 }
+
+
+model ResumeLog {
+  logId        Int      @id @default(autoincrement())
+  resumeId    Int      @map("resumeId")
+  recruiterId Int     @map("recruiterId")
+ status    ResumeStatus   @map("status")
+  newstatus    ResumeStatus   @map("newstatus")
+  reason       String   @map("reason")
+  updatedAt    DateTime @default(now()) @map("timestamp")
+  resumes      Resumes  @relation(fields: [resumeId], references: [resumeId])
+   user         Users @relation("UserToResumeLog", fields: [recruiterId], references: [userId])
+    @@map("ResumeLogs")
+
+}
+
+
+
+
 
 enum ResumeStatus {
 APPLY
@@ -60,7 +82,7 @@ model UserInfos {
   userId    Int         @unique @map("userId") 
   email    String      @unique @map("email")
   name      String      @map("name")
-  role       Role       @default(APPLICANT)
+  role       Role     @default(RECRUITER)
   createdAt DateTime    @default(now()) @map("createdAt")
   updatedAt DateTime    @updatedAt @map("updatedAt")
 
@@ -69,7 +91,10 @@ model UserInfos {
   @@map("UserInfos")
 }
 
+
 enum Role {
-  APPLICANT
-  RECRUITER
+APPLICANT
+    RECRUITER
 }
+
+
