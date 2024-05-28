@@ -17,7 +17,7 @@ model Users {
   userId          Int         @id @default(autoincrement()) @map("userId")
   email           String      @unique @map("email")
   name            String      @map("name")
-  role            Role        @default(RECRUITER)
+  role            Role        @default(APPLICANT)
   password        String      @map("password")
   passwordConfirm String      @map("passwordConfirm")
   createdAt       DateTime    @default(now()) @map("createdAt")
@@ -81,7 +81,7 @@ model UserInfos {
   userId    Int         @unique @map("userId") 
   email    String      @unique @map("email")
   name      String      @map("name")
-  role       Role       @default(RECRUITER)
+  role       Role       @default(APPLICANT)
   createdAt DateTime    @default(now()) @map("createdAt")
   updatedAt DateTime    @updatedAt @map("updatedAt")
 
