@@ -4,7 +4,6 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import refreshMiddleware from '../middleware/refresh-token.middleware.js';
 import accessMiddleware from '../middleware/require-access-token.middleware.js';
-import EnvConstants from '../constants/env.constant.js';
 const router = express.Router();
 
 
@@ -147,9 +146,8 @@ router.post('/sign-in', async (req, res, next) => {
 // 토큰 재발급 API
 
 
-const ACCESS_TOKEN_SECRET_KEY = EnvConstants.ACCESS_TOKEN_SECRET_KEY;
-const REFRESH_TOKEN_SECRET_KEY = EnvConstants.REFRESH_TOKEN_SECRET_KEY;
-
+const accessTokenSecret = process.env.ACCESS_TOKEN_SECRET;
+const refreshTokenSecret = process.env.REFRESH_TOKEN_SECRET;
 
 router.post('/tokens', refreshMiddleware, async (req, res) => {
   const user = req.user;
@@ -185,7 +183,7 @@ router.post('/tokens', refreshMiddleware, async (req, res) => {
 function createAccessToken(userId) {
   return jwt.sign(
     { userId }, 
-    ACCESS_TOKEN_SECRET_KEY, 
+    accessTokenSecret, 
     { expiresIn: '12h' }
   );
 }
@@ -193,7 +191,7 @@ function createAccessToken(userId) {
 function createRefreshToken(userId) {
   return jwt.sign(
     { userId }, 
-    REFRESH_TOKEN_SECRET_KEY, 
+    refreshTokenSecret ,
     { expiresIn: '7d' }
   );
 }
