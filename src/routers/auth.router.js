@@ -203,8 +203,8 @@ router.post('/logout', accessMiddleware, async (req, res) => {
   try {
     const user = req.user;
 
-    // RefreshToken 삭제
-    await prisma.refreshToken.deleteMany({
+    // accessToken 삭제
+    await prisma.accessToken.deleteMany({
       where: {
         userId: user.userId
       }
