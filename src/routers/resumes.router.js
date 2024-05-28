@@ -3,7 +3,7 @@ import express from 'express';
 import { prisma } from './index.js';
 import accessMiddleware from '../middleware/require-access-token.middleware.js';
 import UserRole from '../constants/user.constant.js';
-import ResumeConstant from '../constants/resume.constant.js';
+
 
 
 const router = express.Router();
@@ -51,17 +51,28 @@ router.get('/resumes', accessMiddleware, async (req, res, next) => {
   try {
     const userRole = req.user.role;
     const { status, sort = 'desc' } = req.query;
-    const sortOrder = sort.toLowerCase();
+    const sortOrder = sort.toLowerCase() === 'asc' ? 'asc' : 'desc'; // 기본값은 'desc'
 
     // 조건에 따른 where 객체 생성
     let where = {};
+
+    // RECRUITER 역할이 아닌 경우에만 userId 조건 추가
+    if (userRole == UserRole.RECRUITER) {
+      where.userId = req.user.userId;
+    }
+
     if (userRole !== UserRole.RECRUITER) {
       where.userId = req.user.userId;
     }
-    
+
     if (status) {
       where.status = status.toUpperCase();
     }
+
+    // 디버깅을 위한 로그 추가
+    console.log("User Role:", userRole);
+    console.log("Where Condition:", where);
+    console.log("Sort Order:", sortOrder);
 
     // Prisma 쿼리 실행
     const resumes = await prisma.resumes.findMany({
@@ -78,7 +89,7 @@ router.get('/resumes', accessMiddleware, async (req, res, next) => {
     });
 
     // 결과 반환
-    if (resumes.length === 0) {
+    if (!resumes) {
       return res.status(200).json([]);
     }
 
@@ -90,33 +101,41 @@ router.get('/resumes', accessMiddleware, async (req, res, next) => {
 
 
 
+
+
+
+
+
 /** 이력서 상세 조회 API **/
 router.get('/posts/:resumeId', accessMiddleware, async (req, res, next) => {
   const { resumeId } = req.params;
-  const userRole = req.user.role;
+  const userId = req.user.userId; // 현재 로그인한 사용자의 ID
+  const userRole = req.user.role; // 현재 사용자의 역할
 
   try {
+  
     let resume;
-    // 채용 담당자인 경우 이력서를 조회합니다.
+
+    // 채용 담당자인 경우 모든 이력서 조회 가능
     if (userRole === UserRole.RECRUITER) {
       resume = await prisma.resumes.findUnique({
         where: { resumeId: +resumeId },
         include: { user: { select: { name: true } } }
       });
     } else {
-      // 지원자인 경우 이력서를 조회하고, 로그인한 사용자와 이력서 작성 사용자가 일치하는지 확인합니다.
       resume = await prisma.resumes.findUnique({
-        where: { resumeId: +resumeId },
+        where: { 
+          resumeId: +resumeId,
+          userId: userId // 작성자 ID와 현재 로그인한 사용자의 ID가 모두 일치해야 함
+        },
         include: { user: { select: { name: true } } }
       });
-      
-      if (!resume) {
-        return res.status(400).json({ message: '이력서가 존재하지 않습니다.' });
-      }
+    }
 
-      if ( resume.userId !== req.user.userId) {
-        return res.status(400).json({ message: '로그인한 사용자가 아닙니다.' });
-      }
+    console.log('Resume:', resume);
+
+    if (!resume) {
+      return res.status(400).json({ message: '이력서가 존재하지 않습니다.' });
     }
 
     const Resume = {
@@ -134,6 +153,11 @@ router.get('/posts/:resumeId', accessMiddleware, async (req, res, next) => {
     next(error);
   }
 });
+
+
+
+
+
 
 
 
