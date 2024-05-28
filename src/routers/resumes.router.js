@@ -56,10 +56,6 @@ router.get('/resumes', accessMiddleware, async (req, res, next) => {
     // 조건에 따른 where 객체 생성
     let where = {};
 
-    // RECRUITER 역할이 아닌 경우에만 userId 조건 추가
-    if (userRole == UserRole.RECRUITER) {
-      where.userId = req.user.userId;
-    }
 
     if (userRole !== UserRole.RECRUITER) {
       where.userId = req.user.userId;
@@ -69,10 +65,7 @@ router.get('/resumes', accessMiddleware, async (req, res, next) => {
       where.status = status.toUpperCase();
     }
 
-    // 디버깅을 위한 로그 추가
-    console.log("User Role:", userRole);
-    console.log("Where Condition:", where);
-    console.log("Sort Order:", sortOrder);
+  
 
     // Prisma 쿼리 실행
     const resumes = await prisma.resumes.findMany({
@@ -107,7 +100,7 @@ router.get('/resumes', accessMiddleware, async (req, res, next) => {
 
 
 /** 이력서 상세 조회 API **/
-router.get('/posts/:resumeId', accessMiddleware, async (req, res, next) => {
+router.get('/resumes/:resumeId', accessMiddleware, async (req, res, next) => {
   const { resumeId } = req.params;
   const userId = req.user.userId; // 현재 로그인한 사용자의 ID
   const userRole = req.user.role; // 현재 사용자의 역할
@@ -164,7 +157,7 @@ router.get('/posts/:resumeId', accessMiddleware, async (req, res, next) => {
 
 
 /** 이력서 수정 API **/
-router.patch('/posts/:resumeId', accessMiddleware, async (req, res, next) => {
+router.patch('/resumes/:resumeId', accessMiddleware, async (req, res, next) => {
   const { resumeId} = req.params;
   const { title, introduce} = req.body;
 
@@ -204,7 +197,7 @@ const Resume = {
 
 
 /** 게시글 삭제 API **/
-router.delete('/posts/:resumeId', accessMiddleware, async (req, res, next) => {
+router.delete('/resumes/:resumeId', accessMiddleware, async (req, res, next) => {
   const { resumeId } = req.params;
   
 

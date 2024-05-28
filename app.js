@@ -17,8 +17,8 @@ const PORT = 3000;
 
 app.use(express.json());
 app.use(cookieParser());
-app.use(ErrorHandlingMiddleware);
 app.use('/api', [UsersRouter, ResumesRouter, AuthRouter ]);
+app.use(ErrorHandlingMiddleware);
 app.patch( '/resume/:resumeId/status',  accessMiddleware, requireRolesMiddleware,
   async (req, res, next) => {
     const { resumeId } = req.params;

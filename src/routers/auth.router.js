@@ -3,6 +3,7 @@ import { prisma } from './index.js';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import refreshMiddleware from '../middleware/refresh-token.middleware.js';
+import accessMiddleware from '../middleware/require-access-token.middleware.js';
 import EnvConstants from '../constants/env.constant.js';
 const router = express.Router();
 
@@ -107,18 +108,24 @@ router.post('/sign-in', async (req, res, next) => {
       }
   
       // JWT 토큰 생성
+
+      const accessTokenSecret = process.env.ACCESS_TOKEN_SECRET;
+      const refreshTokenSecret = process.env.REFRESH_TOKEN_SECRET;
+
+
+
       const accessToken = jwt.sign(
         {
           userId: user.userId,
         },
-        'kumakuma0810',
+      accessTokenSecret,
         { expiresIn: '12h' }
       );
       const refreshToken = jwt.sign(
         {
           userId: user.userId,
         },
-        '1234',
+        refreshTokenSecret,
         { expiresIn: '7d' }
       );
       const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
@@ -194,7 +201,7 @@ function createRefreshToken(userId) {
 
 // 로그아웃
 
-router.post('/logout', refreshMiddleware, async (req, res) => {
+router.post('/logout', accessMiddleware, async (req, res) => {
   try {
     const user = req.user;
 
