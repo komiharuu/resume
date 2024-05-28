@@ -21,7 +21,7 @@ export default async function (req, res, next) {
       throw new Error('지원하지 않는 인증 방식입니다');
     }
 
-    const decodedToken = jwt.verify(accessToken, 'custom-secret-key');
+    const decodedToken = jwt.verify(accessToken, 'kumakuma0810');
     const userId = decodedToken.userId;
 
     const user = await prisma.users.findFirst({

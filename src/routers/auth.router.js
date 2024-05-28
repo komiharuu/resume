@@ -2,7 +2,10 @@ import express from 'express';
 import { prisma } from './index.js';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+import refreshMiddleware from '../middleware/refresh-token.middleware.js';
+import EnvConstants from '../constants/env.constant.js';
 const router = express.Router();
+
 
 /** 사용자 회원가입 API **/
 router.post('/sign-up', async (req, res, next) => {
@@ -79,44 +82,135 @@ router.post('/sign-up', async (req, res, next) => {
 
 // 사용자 로그인 API
 router.post('/sign-in', async (req, res, next) => {
-  const { email, password } = req.body;
+    const { email, password } = req.body;
+  
+    try {
+      // 유효성 검증
+      if (!email) {
+        return res.status(400).json({ message: '이메일을 입력해 주세요.' });
+      }
+      if (!password) {
+        return res.status(400).json({ message: '비밀번호를 입력해 주세요.' });
+      }
+  
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        return res.status(400).json({ message: '이메일 형식이 올바르지 않습니다.' });
+      }
+  
+      // 이메일로 사용자 조회
+      const user = await prisma.users.findFirst({ where: { email } });
+  
+      // 이메일 또는 비밀번호가 일치하지 않는 경우
+      if (!user || !(await bcrypt.compare(password, user.password))) {
+        return res.status(401).json({ message: '인증 정보가 유효하지 않습니다.' });
+      }
+  
+      // JWT 토큰 생성
+      const accessToken = jwt.sign(
+        {
+          userId: user.userId,
+        },
+        'kumakuma0810',
+        { expiresIn: '12h' }
+      );
+      const refreshToken = jwt.sign(
+        {
+          userId: user.userId,
+        },
+        '1234',
+        { expiresIn: '7d' }
+      );
+      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+      await prisma.refreshToken.create({
+        data: {
+          token: refreshToken,
+          userId: user.userId,
+          expiresAt
+        }
+      })
+
+      return res.status(200).json({accessToken,  refreshToken});
+    } catch (err) {
+      next(err);
+    }
+  });
+
+// 토큰 재발급 API
+
+
+const ACCESS_TOKEN_SECRET_KEY = EnvConstants.ACCESS_TOKEN_SECRET_KEY;
+const REFRESH_TOKEN_SECRET_KEY = EnvConstants.REFRESH_TOKEN_SECRET_KEY;
+
+
+router.post('/tokens', refreshMiddleware, async (req, res) => {
+  const user = req.user;
+
+  console.log(req.user)
+
+  if (!user) {
+    return res.status(401).json({ message: '인증 정보가 유효하지 않습니다.' });
+  }
+
+  const accessToken = createAccessToken(user.userId);
+  const refreshToken = createRefreshToken(user.userId);
+
+  
+  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
   try {
-    // 유효성 검증
-    if (!email) {
-      return res.status(400).json({ message: '이메일을 입력해 주세요.' });
-    }
-    if (!password) {
-      return res.status(400).json({ message: '비밀번호를 입력해 주세요.' });
-    }
+    await prisma.refreshToken.upsert({
+      where: { userId: user.userId },
+      update: { token: refreshToken, expiresAt },
+      create: { userId: user.userId, token: refreshToken, expiresAt },
+    });
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      return res.status(400).json({ message: '이메일 형식이 올바르지 않습니다.' });
-    }
+    res.header('accessToken', accessToken); 
+    res.header('refreshToken', refreshToken); 
 
-    // 이메일로 사용자 조회
-    const user = await prisma.users.findFirst({ where: { email } });
-
-    // 이메일 또는 비밀번호가 일치하지 않는 경우
-    if (!user || !(await bcrypt.compare(password, user.password))) {
-      return res.status(401).json({ message: '인증 정보가 유효하지 않습니다.' });
-    }
-
-    // JWT 토큰 생성
-    const accessToken = jwt.sign(
-      {
-        userId: user.userId,
-      },
-      'custom-secret-key',
-      { expiresIn: '12h' }
-    );
-
-    // AccessToken 반환 및  authotization 헤더에 Bearer 토큰 형식으로 JWT를 저장합니다.
-    res.header( 'authorization', `Bearer ${accessToken}`); 
-    return res.status(200).json(`Bearer ${accessToken}`);
+    return res.status(200).json({ accessToken,  refreshToken });
   } catch (err) {
-    next(err);
+    return res.status(500).json({ message: '토큰 발급에 실패했습니다.', error: err.message });
   }
 });
+
+function createAccessToken(userId) {
+  return jwt.sign(
+    { userId }, 
+    ACCESS_TOKEN_SECRET_KEY, 
+    { expiresIn: '12h' }
+  );
+}
+
+function createRefreshToken(userId) {
+  return jwt.sign(
+    { userId }, 
+    REFRESH_TOKEN_SECRET_KEY, 
+    { expiresIn: '7d' }
+  );
+}
+
+
+// 로그아웃
+
+router.post('/logout', refreshMiddleware, async (req, res) => {
+  try {
+    const user = req.user;
+
+    // RefreshToken 삭제
+    await prisma.refreshToken.deleteMany({
+      where: {
+        userId: user.userId
+      }
+    });
+
+    return res.status(200).json({ userId: user.userId });
+  } catch (error) {
+    return res.status(500).json({ message: '로그아웃에 실패했습니다.', error: error.message });
+  }
+});
+
+
+
 export default router;

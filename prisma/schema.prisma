@@ -13,12 +13,11 @@ datasource db {
 }
 
 
-
 model Users {
   userId          Int         @id @default(autoincrement()) @map("userId")
   email           String      @unique @map("email")
   name            String      @map("name")
-  role            Role     @default(RECRUITER)
+  role            Role     @default(APPLICANT)
   password        String      @map("password")
   passwordConfirm String      @map("passwordConfirm")
   createdAt       DateTime    @default(now()) @map("createdAt")
@@ -27,7 +26,7 @@ model Users {
 
  @@unique([userId])
   userInfos        UserInfos[]
-  resumes    Resumes[] 
+  resumes    Resumes[]
   resumeLogs ResumeLog[] @relation("UserToResumeLog")
   @@map("Users")
 }
@@ -43,7 +42,7 @@ model Resumes {
   updatedAt DateTime @updatedAt @map("updatedAt")
 
   
-   user     Users     @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  user     Users     @relation(fields: [userId], references: [userId])
   resumeLogs ResumeLog[]
   @@map("Resumes")
 }
@@ -82,7 +81,7 @@ model UserInfos {
   userId    Int         @unique @map("userId") 
   email    String      @unique @map("email")
   name      String      @map("name")
-  role       Role     @default(RECRUITER)
+  role       Role     @default(APPLICANT)
   createdAt DateTime    @default(now()) @map("createdAt")
   updatedAt DateTime    @updatedAt @map("updatedAt")
 
@@ -95,6 +94,15 @@ model UserInfos {
 enum Role {
 APPLICANT
     RECRUITER
+}
+
+model RefreshToken {
+  id           Int       @id @default(autoincrement())
+  token        String    @unique
+  userId       Int
+  expiresAt    DateTime   @default(now()) @map("expiresAt")
+  @@unique([userId])
+  @@map("RefreshTokens")
 }
 
 

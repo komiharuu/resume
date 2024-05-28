@@ -11,28 +11,31 @@ const router = express.Router();
 router.get('/users', accessMiddleware, async (req, res, next) => {
   try {
     const { userId } = req.user;
- 
-  const user = await prisma.users.findFirst({
-    where: { userId: +userId },
-    select: {
-      userId: true,
-      email: true,
-      name: true,
-      createdAt: true,
-      updatedAt: true,
-      userInfos: {
-        // 1:1 관계를 맺고있는 UserInfos 테이블을 조회합니다.
-        select: {
-          role: true,
-        },
+
+    const user = await prisma.users.findFirst({
+      where: { userId: +userId },
+      select: {
+        userId: true,
+        email: true,
+        name: true,
+        createdAt: true,
+        updatedAt: true,
       },
-    },
-  });
+    });
 
+    // UserInfos 테이블과 조인하여 role 정보를 가져옵니다.
+    const userInfo = await prisma.userInfos.findFirst({
+      where: { userId: +userId },
+      select: { role: true },
+    });
 
-  return res.status(200).json({ data: user});
-}
-   catch (err) {
+    // user 객체에 role 정보를 추가합니다.
+    if (userInfo) {
+      user.role = userInfo.role;
+    }
+
+    return res.status(200).json({ data: user });
+  } catch (err) {
     next(err);
   }
 });

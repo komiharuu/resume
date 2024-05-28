@@ -1,9 +1,11 @@
-// src/routes/posts.router.js
 
 import express from 'express';
 import { prisma } from './index.js';
 import accessMiddleware from '../middleware/require-access-token.middleware.js';
 import UserRole from '../constants/user.constant.js';
+import ResumeConstant from '../constants/resume.constant.js';
+
+
 const router = express.Router();
 
 /** 이력서 생성 API **/
@@ -85,9 +87,6 @@ router.get('/resumes', accessMiddleware,  async (req, res, next) => {
 catch (err) {
   next(err);
 }});
-  
-  
-
 
 
 /** 이력서 상세 조회 API **/
@@ -114,14 +113,14 @@ router.get('/posts/:resumeId', accessMiddleware, async (req, res, next) => {
         return res.status(400).json({ message: '이력서가 존재하지 않습니다.' });
       }
 
-      if (userRole !== UserRole.RECRUITER && resume.userId !== req.user.userId) {
+      if ( resume.userId !== req.user.userId) {
         return res.status(400).json({ message: '로그인한 사용자가 아닙니다.' });
       }
     }
 
     const Resume = {
       resumeId: resume.resumeId,
-      name: resume.user.name, 
+      name: resume.user.name, // 작성자 이름
       title: resume.title,
       introduce: resume.introduce,
       status: resume.status,
@@ -174,33 +173,38 @@ const Resume = {
 
 
 /** 게시글 삭제 API **/
-router.delete('/resumes/:resumeId', accessMiddleware, async (req, res) => {
-  try {
-    const { userId } = req.user;
-    const resumeId  = req.params.resumeId;
+router.delete('/posts/:resumeId', accessMiddleware, async (req, res, next) => {
+  const { resumeId } = req.params;
+  
 
-    // 이력서 조회
-    const resume = await prisma.resumes.findFirst({ 
-      where: { 
-        resumeId: +resumeId,
-        userId: userId // 현재 로그인한 사용자가 작성한 이력서만 삭제 가능
-      } 
-    });
+  const resume = await prisma.resumes.findFirst({ where: { resumeId: +resumeId} });
 
-    // 이력서가 존재하지 않는 경우
-    if (!resume) {
-      return res.status(404).json({ message: '이력서가 존재하지 않습니다.' });
-    }
+  if (!resume)
+    return res.status(404).json({ message: '이력서가 존재하지 않습니다.' });
 
-    // 이력서 정보 삭제
-    await prisma.resumes.delete({ where: { resumeId: +resumeId } });
 
-    // 삭제된 이력서 ID 반환
-    return res.status(200).json({ resumeId: +resumeId });
-  } catch (error) {
-    return res.status(500).json({ message: '이력서 삭제에 실패했습니다.' });
-  }
+  await prisma.resumes.delete({ where: { resumeId: +resumeId} });
+
+  return res.status(200).json({ resumeId: +resumeId});
 });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
