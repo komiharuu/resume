@@ -13,7 +13,7 @@ import requireRolesMiddleware from './src/middleware/require-roles.middleware.js
 dotenv.config();
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT
 
 app.use(express.json());
 app.use(cookieParser());
