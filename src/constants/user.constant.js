@@ -1,6 +1,6 @@
 const UserRole = {
-    APPLICANT: 'applicant',
-    RECRUITER: 'recruiter'
-  };
+  APPLICANT: 'APPLICANT',
+  RECRUITER: 'RECRUITER',
+};
 
-  export default  UserRole;
+export default UserRole;

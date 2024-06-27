@@ -13,26 +13,32 @@ datasource db {
 }
 
 
-model Users {
+model User {
   userId          Int         @id @default(autoincrement()) @map("userId")
   email           String      @unique @map("email")
   name            String      @map("name")
   role            Role        @default(APPLICANT)
   password        String      @map("password")
-  passwordConfirm String      @map("passwordConfirm")
+  snsId           String?     @map("snsId")
+  provider        provider    @default(LOCAL)           @map("provider")
   createdAt       DateTime    @default(now()) @map("createdAt")
   updatedAt       DateTime    @updatedAt @map("updatedAt")
 
 
  @@unique([userId])
-  userInfos        UserInfos[]
-  resumes    Resumes[]
-  resumeLogs ResumeLog[] @relation("UserToResumeLog")
+  resume   Resume[]
+  resumeLog ResumeLog[] 
   @@map("Users")
 }
 
+enum provider {
+LOCAL
+NAVER
+}
 
-model Resumes {
+
+
+model Resume {
   resumeId    Int      @id @default(autoincrement()) @map("resumeId")
   userId    Int      @map("userId") 
   title     String   @map("title")
@@ -42,8 +48,8 @@ model Resumes {
   updatedAt DateTime @updatedAt @map("updatedAt")
 
   
-  user     Users     @relation(fields: [userId], references: [userId])
-  resumeLogs ResumeLog[]
+  user     User    @relation(fields: [userId], references: [userId])
+  resumeLog ResumeLog[]
   @@map("Resumes")
 }
 
@@ -56,13 +62,20 @@ model ResumeLog {
   newstatus    ResumeStatus   @map("newstatus")
   reason       String   @map("reason")
   updatedAt    DateTime @default(now()) @map("timestamp")
-  resumes      Resumes  @relation(fields: [resumeId], references: [resumeId])
-   user         Users @relation("UserToResumeLog", fields: [recruiterId], references: [userId])
+  resumes      Resume  @relation(fields: [resumeId], references: [resumeId])
+   user         User @relation(fields: [recruiterId], references: [userId])
     @@map("ResumeLogs")
 
 }
 
+model emailCode {
+  code Int      @unique
+  email            String @unique
+  createdAt        DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
+  @@map("email")
+}
 
 
 
@@ -75,20 +88,6 @@ INTERVIEW2
 FINAL_PASS
 }
 
-model UserInfos {
-
-  userInfoId   Int      @id @default(autoincrement()) @map("userInfoId")
-  userId    Int         @unique @map("userId") 
-  email    String      @unique @map("email")
-  name      String      @map("name")
-  role       Role       @default(APPLICANT)
-  createdAt DateTime    @default(now()) @map("createdAt")
-  updatedAt DateTime    @updatedAt @map("updatedAt")
-
-  user      Users       @relation(fields: [userId], references: [userId])
-
-  @@map("UserInfos")
-}
 
 
 enum Role {
@@ -97,8 +96,8 @@ APPLICANT
 }
 
 model RefreshToken {
-  id           Int       @id @default(autoincrement())
-  token        String    @unique
+ tokenId           Int       @id @default(autoincrement())
+  token        String?   
   userId       Int
   expiresAt    DateTime   @default(now()) @map("expiresAt")
   @@unique([userId])

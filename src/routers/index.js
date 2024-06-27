@@ -1,11 +1,21 @@
-// src/utils/prisma/index.js
+import express from 'express';
+import authRouter from './auth.router.js';
+import userRouter from './users.router.js';
+import resumeRouter from './resumes.router.js';
+const apiRouter = express.Router();
 
-import { PrismaClient } from '@prisma/client';
+// 테스트용 라우터 (나중에 지울 예정)
+apiRouter.get('/', (req, res) => {
+  return res.status(200).json({ message: 'index.js 테스트' });
+});
 
-export const prisma = new PrismaClient({
-  // Prisma를 이용해 데이터베이스를 접근할 때, SQL을 출력해줍니다.
-  log: ['query', 'info', 'warn', 'error'],
+// 회원가입 라우터
+apiRouter.use('/auth', authRouter);
 
-  // 에러 메시지를 평문이 아닌, 개발자가 읽기 쉬운 형태로 출력해줍니다.
-  errorFormat: 'pretty',
-}); // PrismaClient 인스턴스를 생성합니다.
+//이력서 라우터
+apiRouter.use('/resumes', resumeRouter);
+
+// 사용자 정보 라우터
+apiRouter.use('/user', userRouter);
+
+export default apiRouter;
