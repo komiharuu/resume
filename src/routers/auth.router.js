@@ -30,7 +30,7 @@ authRouter.post('/sign-up', signUpValidator, async (req, res, next) => {
     return res.status(400).json({ message: '이미 가입 된 사용자입니다.' });
   }
 
-  await sendEmail(email);
+
 
   // 사용자 비밀번호를 암호화합니다.
   const hashedPassword = await bcrypt.hash(password, 10);
